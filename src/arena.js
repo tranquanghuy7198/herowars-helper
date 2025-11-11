@@ -5,6 +5,7 @@
 // @description  Automated API testing tool with scheduled attack UI
 // @match        https://apps-*.apps.fbsbx.com/*
 // @match        https://heroes-fb.nextersglobal.com/*
+// @match        *://*/*
 // @grant        none
 // @run-at       document-start
 // @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js

@@ -3,9 +3,8 @@
 // @namespace    http://tampermonkey.net/
 // @version      2.0
 // @description  Automated API testing tool with scheduled attack UI
-// @match        https://apps-*.apps.fbsbx.com/*
-// @match        https://heroes-fb.nextersglobal.com/*
-// @match        *://*/*
+// @match			https://www.hero-wars.com/*
+// @match			https://apps-1701433570146040.apps.fbsbx.com/*
 // @grant        none
 // @run-at       document-start
 // @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js

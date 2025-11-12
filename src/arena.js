@@ -85,14 +85,15 @@
 
   XMLHttpRequest.prototype.send = function (data) {
     // Check if the request contains arenaCheckTargetRange
-    if (new TextDecoder("utf-8").decode(new Uint8Array(data)).includes("arenaCheckTargetRange")) {
-      console.log('[BLOCKED] arenaCheckTargetRange request blocked:', this._url);
-      // Don't send the request
-      return;
-    }
+    // if (new TextDecoder("utf-8").decode(new Uint8Array(data)).includes("arenaCheckTargetRange")) {
+    //   console.log('[BLOCKED] arenaCheckTargetRange request blocked:', this._url);
+    //   // Don't send the request
+    //   return;
+    // }
 
     if (isCapturing && this._url && this._url.includes('heroes-fb.nextersglobal.com/api')) {
       lastHeaders = { ...this._headers };
+      console.log("LAST ID", parseInt(this._headers["X-Request-Id"]) || 0)
       updateUIStatus('Headers captured ✓');
     }
     return originalSend.apply(this, arguments);

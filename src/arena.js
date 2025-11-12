@@ -85,7 +85,7 @@
 
   XMLHttpRequest.prototype.send = function (data) {
     // Check if the request contains arenaCheckTargetRange
-    if (data && typeof data === 'string' && data.includes('arenaCheckTargetRange')) {
+    if (new TextDecoder("utf-8").decode(new Uint8Array(data)).includes("arenaCheckTargetRange")) {
       console.log('[BLOCKED] arenaCheckTargetRange request blocked:', this._url);
       // Don't send the request
       return;

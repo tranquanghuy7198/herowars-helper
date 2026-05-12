@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Hero Wars Automator (Detailed Logging)
+// @name         Hero Wars Automator (Success Timer)
 // @namespace    http://tampermonkey.net/
-// @version      3.1
-// @description  Intercepts session and logs Hero ID + Skill on screen
+// @version      3.2
+// @description  Intercepts session and logs Hero ID, Skill, and exact Success Time
 // @author       Gemini
 // @match        *://*.hero-wars.com/*
 // @match        *://*.nextersglobal.com/*
@@ -17,6 +17,7 @@
   let lastHeaders = null;
   let lastRequestId = 0;
   let isLoopRunning = false;
+  let lastSuccessTime = "Never";
 
   // --- 1. UI Injection ---
   function injectUI() {
@@ -28,25 +29,31 @@
     hud.id = 'hw-automator-hud';
     hud.style = `
             position: fixed; top: 20px; left: 20px; z-index: 999999; 
-            background: rgba(17, 17, 17, 0.95); color: #0f0; 
+            background: rgba(10, 10, 10, 0.9); color: #0f0; 
             border: 1px solid #0f0; padding: 12px; 
             font-family: 'Courier New', monospace; font-size: 12px; 
-            pointer-events: none; box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
-            border-radius: 4px; line-height: 1.6;
+            pointer-events: none; box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+            border-radius: 6px; line-height: 1.5;
         `;
     hud.innerHTML = `
-            <div style="color: #fff; font-weight: bold; border-bottom: 1px solid #0f0; margin-bottom: 5px;">[HW_BOT_V3.1]</div>
+            <div style="color: #fff; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 5px; padding-bottom: 3px;">[HW_BOT_PRO]</div>
             Status: <span id="bot-status" style="color: #ff0;">Scanning...</span><br>
-            <div id="bot-log" style="color: #aaa; margin-top: 5px;">Wait for game activity...</div>
-            <div id="bot-last-upgrade" style="color: #0ff; margin-top: 5px; font-weight: bold;"></div>
+            <div id="bot-log" style="color: #aaa;">Wait for Hero click...</div>
+            <div style="margin-top: 8px; border-top: 1px dashed #444; padding-top: 5px;">
+                <div id="bot-last-upgrade" style="color: #0ff; font-weight: bold;"></div>
+                <div id="bot-timestamp" style="color: #888; font-size: 10px; margin-top: 3px;">Last Success: Never</div>
+            </div>
         `;
     container.appendChild(hud);
   }
 
-  function updateBot(status, log, upgradeInfo = "") {
+  function updateBot(status, log, upgradeInfo = "", timestamp = "") {
     if (document.getElementById('bot-status')) document.getElementById('bot-status').innerText = status;
     if (document.getElementById('bot-log')) document.getElementById('bot-log').innerText = log;
     if (document.getElementById('bot-last-upgrade')) document.getElementById('bot-last-upgrade').innerHTML = upgradeInfo;
+    if (timestamp && document.getElementById('bot-timestamp')) {
+      document.getElementById('bot-timestamp').innerText = `Last Success: ${timestamp}`;
+    }
   }
 
   // --- 2. XHR Proxying ---
@@ -60,7 +67,7 @@
 
         if (!isLoopRunning) {
           isLoopRunning = true;
-          updateBot("CAPTURED", "Starting automation...");
+          updateBot("CAPTURED", "Starting loop...");
           setTimeout(startAutomation, 5000);
         }
       }
@@ -84,11 +91,12 @@
 
   // --- 3. Automation Loop ---
   async function startAutomation() {
-    const intervalMs = (5 * 60 + 30) * 1000;
+    const intervalMs = (5 * 60 + 10) * 1000;
 
     async function doUpgrade() {
       if (!lastHeaders) return;
 
+      // Increment Req ID by 10 per call as you requested earlier
       lastRequestId += 10;
       const targetHero = 60;
       const randomSkill = Math.floor(Math.random() * 4) + 1;
@@ -112,20 +120,21 @@
         const time = new Date().toLocaleTimeString();
 
         if (res.ok) {
+          lastSuccessTime = time;
           updateBot(
             "ACTIVE",
-            `Last Sync: ${time}`,
-            `LATEST: Hero[${targetHero}] Skill[${randomSkill}] ✓`
+            "Waiting 5m 30s...",
+            `HERO[${targetHero}] SKILL[${randomSkill}]`,
+            lastSuccessTime
           );
         } else {
-          updateBot("ERROR", `Status ${res.status}`, "Request Rejected");
+          updateBot("ERROR", `HTTP ${res.status}`, "Rejected", lastSuccessTime);
         }
       } catch (e) {
-        updateBot("OFFLINE", "Network Error", e.message);
+        updateBot("OFFLINE", "Network Fail", e.message, lastSuccessTime);
       }
     }
 
-    // Run once immediately, then interval
     doUpgrade();
     setInterval(doUpgrade, intervalMs);
   }

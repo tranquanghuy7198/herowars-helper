@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Hero Wars Automator (Helper Edition)
+// @name         Hero Wars Automator (Detailed Logging)
 // @namespace    http://tampermonkey.net/
-// @version      3.0
-// @description  Uses Function Proxying to capture session and automate
+// @version      3.1
+// @description  Intercepts session and logs Hero ID + Skill on screen
 // @author       Gemini
 // @match        *://*.hero-wars.com/*
 // @match        *://*.nextersglobal.com/*
@@ -18,8 +18,7 @@
   let lastRequestId = 0;
   let isLoopRunning = false;
 
-  // --- 1. Aggressive UI Injection ---
-  // Instead of waiting for 'load', we try to inject as soon as document.documentElement exists
+  // --- 1. UI Injection ---
   function injectUI() {
     if (document.getElementById('hw-automator-hud')) return;
     const container = document.body || document.documentElement;
@@ -27,32 +26,41 @@
 
     const hud = document.createElement('div');
     hud.id = 'hw-automator-hud';
-    hud.style = `position:fixed; top:20px; left:20px; z-index:999999; background:#111; color:#0f0; border:1px solid #0f0; padding:10px; font-family:monospace; font-size:12px; pointer-events:none; box-shadow:0 0 15px #0f0;`;
-    hud.innerHTML = `[HW_BOT] Status: <span id="bot-status">Scanning...</span><br>[LOG]: <span id="bot-log">Wait for Hero click</span>`;
+    hud.style = `
+            position: fixed; top: 20px; left: 20px; z-index: 999999; 
+            background: rgba(17, 17, 17, 0.95); color: #0f0; 
+            border: 1px solid #0f0; padding: 12px; 
+            font-family: 'Courier New', monospace; font-size: 12px; 
+            pointer-events: none; box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            border-radius: 4px; line-height: 1.6;
+        `;
+    hud.innerHTML = `
+            <div style="color: #fff; font-weight: bold; border-bottom: 1px solid #0f0; margin-bottom: 5px;">[HW_BOT_V3.1]</div>
+            Status: <span id="bot-status" style="color: #ff0;">Scanning...</span><br>
+            <div id="bot-log" style="color: #aaa; margin-top: 5px;">Wait for game activity...</div>
+            <div id="bot-last-upgrade" style="color: #0ff; margin-top: 5px; font-weight: bold;"></div>
+        `;
     container.appendChild(hud);
   }
 
-  function updateBot(status, log) {
+  function updateBot(status, log, upgradeInfo = "") {
     if (document.getElementById('bot-status')) document.getElementById('bot-status').innerText = status;
     if (document.getElementById('bot-log')) document.getElementById('bot-log').innerText = log;
+    if (document.getElementById('bot-last-upgrade')) document.getElementById('bot-last-upgrade').innerHTML = upgradeInfo;
   }
 
-  // --- 2. Request Interception (HeroWarsHelper Method) ---
+  // --- 2. XHR Proxying ---
   const originalSend = XMLHttpRequest.prototype.send;
   XMLHttpRequest.prototype.send = function (data) {
-    // HeroWarsHelper monitors nextersglobal API calls specifically
     if (this._url && this._url.includes('nextersglobal.com/api/')) {
-      const token = this._headers && this._headers["X-Auth-Token"];
-      const sign = this._headers && this._headers["X-Auth-Signature"];
-
-      if (token && sign) {
+      if (this._headers && this._headers["X-Auth-Token"]) {
         lastHeaders = { ...this._headers };
         const reqId = parseInt(this._headers["X-Request-Id"]) || 0;
         if (reqId > lastRequestId) lastRequestId = reqId;
 
         if (!isLoopRunning) {
           isLoopRunning = true;
-          updateBot("CAPTURED", "Starting loop in 5s");
+          updateBot("CAPTURED", "Starting automation...");
           setTimeout(startAutomation, 5000);
         }
       }
@@ -60,7 +68,6 @@
     return originalSend.apply(this, arguments);
   };
 
-  // Proxy the 'open' and 'setRequestHeader' to catch metadata
   const originalOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (method, url) {
     this._url = url;
@@ -75,18 +82,22 @@
     return originalSetHeader.apply(this, arguments);
   };
 
-  // --- 3. The Automation Engine ---
+  // --- 3. Automation Loop ---
   async function startAutomation() {
-    setInterval(async () => {
+    const intervalMs = (5 * 60 + 30) * 1000;
+
+    async function doUpgrade() {
       if (!lastHeaders) return;
 
-      // Increment Req ID (Game logic often checks for sequential IDs)
-      lastRequestId += 1;
+      lastRequestId += 10;
+      const targetHero = 60;
+      const randomSkill = Math.floor(Math.random() * 4) + 1;
 
       const payload = {
         calls: [{
           name: "heroUpgradeSkill",
-          args: { heroId: 60, skill: 1 }, // Defaulting to Galahad/Hero 60
+          args: { heroId: targetHero, skill: randomSkill },
+          context: { actionTs: Math.floor(performance.now()) },
           ident: "bot_upgrade"
         }]
       };
@@ -98,15 +109,26 @@
           body: JSON.stringify(payload)
         });
 
+        const time = new Date().toLocaleTimeString();
+
         if (res.ok) {
-          updateBot("ACTIVE", "Upgrade Success @ " + new Date().toLocaleTimeString());
+          updateBot(
+            "ACTIVE",
+            `Last Sync: ${time}`,
+            `LATEST: Hero[${targetHero}] Skill[${randomSkill}] ✓`
+          );
+        } else {
+          updateBot("ERROR", `Status ${res.status}`, "Request Rejected");
         }
       } catch (e) {
-        updateBot("ERROR", "Check Console");
+        updateBot("OFFLINE", "Network Error", e.message);
       }
-    }, (5 * 60 + 30) * 1000); // 5.5 minutes
+    }
+
+    // Run once immediately, then interval
+    doUpgrade();
+    setInterval(doUpgrade, intervalMs);
   }
 
-  // Run UI injection
   injectUI();
 })();

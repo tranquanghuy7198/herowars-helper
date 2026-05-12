@@ -1,17 +1,21 @@
 const { exec } = require('child_process');
 
 // Configuration
-const url = 'https://example.com';
 const minutes = 5;
 const seconds = 30;
-const intervalMs = (minutes * 60 + seconds) * 1000; // Convert to milliseconds
+const intervalMs = (minutes * 60 + seconds) * 1000;
 
-console.log(`Starting: Requesting ${url} every ${minutes}m ${seconds}s...`);
+// Persistent state
+let requestId = 100;
+
+console.log(`Starting script: Requesting API every ${minutes}m ${seconds}s...`);
 
 function runCurl() {
-  const performanceTs = Math.floor(performance.now())
+  const performanceTs = Math.floor(performance.now());
   const currentTime = Math.floor(Date.now() / 1000);
-  const skill = Math.floor(Math.random() * 4) + 1; // Random skill between 1 and 4
+  const skill = Math.floor(Math.random() * 4) + 1;
+
+  // Build the command with the dynamic requestId
   const command = `curl --location 'https://heroes-fb.nextersglobal.com/api/' \
     --header 'accept: */*' \
     --header 'accept-language: en-US,en;q=0.9' \
@@ -38,7 +42,7 @@ function runCurl() {
     --header 'x-env-library-version: 1' \
     --header 'x-env-unique-session-id: null' \
     --header 'x-full-referer: https://apps-1701433570146040.apps.fbsbx.com/br-compress-instant-bundle/br/648494677267229/25518291007825203/index.html?is_shield_env=0&version=34&nonnull_share_payload=0&gcgs=0&should_log_unsafe_numbers=1&use_generic_dialog_for_switch_async=1&use_generic_dialog_for_create_async=1&use_pass_through_for_coplay_custom_update=1&include_share_link_async=0&include_video_plugin_get_content_id_async=0&include_ar_navigate_to_camera_with_effect_async=0&include_room_clear_camera_effect_async=0&include_context_is_public_async=0&include_is_ad_break_test=0&include_register_screenshot_provider=0&use_bridge_for_coplay_custom_update=0&gtiaa=nq&environment_type=standard&intr_en=1&iaa_u_intent=HIGH&iaa_b_ads=0&iaa_ux_score=0&csp_cache=2&IsMobileWeb=0&cloud_host_override[cluster]&cloud_host_override[host]&cloud_host_override[hostname]&cloud_host_override[pop]&cloud_host_override[port]&cloud_host_override[site_key]&cloud_host_override[site_keys]&cloud_host_override[sp_tier]&cloud_host_override[target]&cloud_host_override[targets]&context_source_id&custom_update_id&entry_point=fb_gg_url&source=fbinstant-1701433570146040' \
-    --header 'x-request-id: 35' \
+    --header 'x-request-id: ${requestId}' \
     --header 'x-requested-with: XMLHttpRequest' \
     --header 'x-server-time: 0' \
     --data '{
@@ -98,21 +102,22 @@ function runCurl() {
                 "ident": "group_1_body"
             }
         ]
-    }'
-  `;
+    }'`;
 
-  exec(command, (error, stdout, stderr) => {
-    const timestamp = new Date().toLocaleString();
-
+  exec(command, (error, stdout) => {
+    const logTime = new Date().toLocaleString();
     if (error) {
-      console.error(`[${timestamp}] Error: ${error.message}`);
-      return;
+      console.error(`[${logTime}] Request ID ${requestId} failed: ${error.message}`);
+    } else {
+      console.log(`[${logTime}] ID: ${requestId} | Skill: ${skill} | Success!`);
     }
 
-    console.log(`[${timestamp}] Response Status: ${stdout}`);
+    // Increase for the next call
+    requestId += 10;
   });
 }
 
-// Run once immediately, then start the interval
+// Initial run
 runCurl();
+// Set interval
 setInterval(runCurl, intervalMs);

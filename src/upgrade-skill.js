@@ -9,6 +9,9 @@ const intervalMs = (minutes * 60 + seconds) * 1000; // Convert to milliseconds
 console.log(`Starting: Requesting ${url} every ${minutes}m ${seconds}s...`);
 
 function runCurl() {
+  const performanceTs = Math.floor(performance.now())
+  const currentTime = Math.floor(Date.now() / 1000);
+  const skill = Math.floor(Math.random() * 4) + 1; // Random skill between 1 and 4
   const command = `curl --location 'https://heroes-fb.nextersglobal.com/api/' \
     --header 'accept: */*' \
     --header 'accept-language: en-US,en;q=0.9' \
@@ -47,10 +50,10 @@ function runCurl() {
                         {
                             "type": ".client.button.click",
                             "params": {
-                                "actionTs": 408511,
+                                "actionTs": ${performanceTs},
                                 "windowName": "global",
                                 "buttonName": "heroes",
-                                "timestamp": 1778598140,
+                                "timestamp": ${currentTime},
                                 "sessionNumber": 51,
                                 "windowCounter": 0,
                                 "assetsReloadNum": 0,
@@ -62,12 +65,12 @@ function runCurl() {
                         {
                             "type": ".client.window.open",
                             "params": {
-                                "actionTs": 408515,
+                                "actionTs": ${performanceTs + 4},
                                 "windowName": "heroes",
                                 "prevWindowName": "global",
                                 "prevButtonName": "heroes",
                                 "prevActionName": ".client.button.click",
-                                "timestamp": 1778598140,
+                                "timestamp": ${currentTime},
                                 "sessionNumber": 51,
                                 "windowCounter": 59,
                                 "assetsReloadNum": 0,
@@ -79,7 +82,7 @@ function runCurl() {
                     ]
                 },
                 "context": {
-                    "actionTs": 412903
+                    "actionTs": ${performanceTs + 1000}
                 },
                 "ident": "group_0_body"
             },
@@ -87,10 +90,10 @@ function runCurl() {
                 "name": "heroUpgradeSkill",
                 "args": {
                     "heroId": 60,
-                    "skill": 1
+                    "skill": ${skill}
                 },
                 "context": {
-                    "actionTs": 416679
+                    "actionTs": ${performanceTs + 2000}
                 },
                 "ident": "group_1_body"
             }

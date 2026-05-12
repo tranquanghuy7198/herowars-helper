@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Hero Wars Automator (Refresh Loop)
+// @name         Hero Wars Automator (Forced Refresh)
 // @namespace    http://tampermonkey.net/
-// @version      3.3
-// @description  Upgrade -> Wait 5m 10s -> Refresh Tab
+// @version      3.4
+// @description  Forced reload every 5m 10s regardless of request outcome
 // @author       Gemini
 // @match        *://*.hero-wars.com/*
 // @match        *://*.nextersglobal.com/*
@@ -16,13 +16,11 @@
 
   let lastHeaders = null;
   let lastRequestId = 0;
-  let isActionTaken = false;
+  let sequenceStarted = false;
 
-  // Load persistent data from storage (so it survives the refresh)
+  // Persistent storage helpers
   const getStoredTime = () => localStorage.getItem('hw_last_success') || "Never";
   const setStoredTime = (val) => localStorage.setItem('hw_last_success', val);
-  const getStoredLog = () => localStorage.getItem('hw_last_log') || "Wait for Hero click...";
-  const setStoredLog = (val) => localStorage.setItem('hw_last_log', val);
 
   // --- 1. UI Injection ---
   function injectUI() {
@@ -37,13 +35,12 @@
             background: rgba(10, 10, 10, 0.95); color: #0f0; 
             border: 1px solid #0f0; padding: 12px; 
             font-family: 'Courier New', monospace; font-size: 12px; 
-            pointer-events: none; box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
-            border-radius: 6px; line-height: 1.5; min-width: 220px;
+            pointer-events: none; border-radius: 6px; line-height: 1.5; min-width: 230px;
         `;
     hud.innerHTML = `
-            <div style="color: #fff; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 5px;">[HW_BOT_REFRESHER]</div>
+            <div style="color: #fff; font-weight: bold; border-bottom: 1px solid #444; margin-bottom: 5px;">[HW_BOT_FORCED]</div>
             Status: <span id="bot-status" style="color: #ff0;">Scanning...</span><br>
-            <div id="bot-log" style="color: #aaa;">${getStoredLog()}</div>
+            <div id="bot-log" style="color: #aaa;">Wait for Hero click...</div>
             <div style="margin-top: 8px; border-top: 1px dashed #444; padding-top: 5px;">
                 <div id="bot-timestamp" style="color: #888; font-size: 10px;">Last Success: ${getStoredTime()}</div>
             </div>
@@ -53,10 +50,7 @@
 
   function updateBot(status, log, timestamp = null) {
     if (document.getElementById('bot-status')) document.getElementById('bot-status').innerText = status;
-    if (document.getElementById('bot-log')) {
-      document.getElementById('bot-log').innerText = log;
-      setStoredLog(log);
-    }
+    if (document.getElementById('bot-log')) document.getElementById('bot-log').innerText = log;
     if (timestamp && document.getElementById('bot-timestamp')) {
       document.getElementById('bot-timestamp').innerText = `Last Success: ${timestamp}`;
       setStoredTime(timestamp);
@@ -72,73 +66,66 @@
         const reqId = parseInt(this._headers["X-Request-Id"]) || 0;
         if (reqId > lastRequestId) lastRequestId = reqId;
 
-        // Only start the sequence once per page load
-        if (!isActionTaken) {
-          isActionTaken = true;
-          updateBot("CAPTURED", "Executing upgrade...");
-          setTimeout(executeAndScheduleRefresh, 2000); // Small delay to let game settle
+        if (!sequenceStarted) {
+          sequenceStarted = true;
+          startForcedSequence();
         }
       }
     }
     return originalSend.apply(this, arguments);
   };
 
-  // Boilerplate for header capture
   const originalOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (m, u) { this._url = u; this._headers = {}; return originalOpen.apply(this, arguments); };
   const originalSetHeader = XMLHttpRequest.prototype.setRequestHeader;
   XMLHttpRequest.prototype.setRequestHeader = function (n, v) { if (!this._headers) this._headers = {}; this._headers[n] = v; return originalSetHeader.apply(this, arguments); };
 
-  // --- 3. The Refresh Strategy ---
-  async function executeAndScheduleRefresh() {
-    if (!lastHeaders) return;
+  // --- 3. The Forced Sequence ---
+  async function startForcedSequence() {
+    // 1. Trigger the countdown immediately
+    let countdown = 310; // 5 mins 10 secs
+    const timer = setInterval(() => {
+      countdown--;
+      const mins = Math.floor(countdown / 60);
+      const secs = countdown % 60;
+      updateBot("FORCED LOOP", `Reloading in ${mins}m ${secs}s...`);
 
-    lastRequestId += 15;
-    const targetHero = 60;
-    const randomSkill = Math.floor(Math.random() * 4) + 1;
-
-    const payload = {
-      calls: [{
-        name: "heroUpgradeSkill",
-        args: { heroId: targetHero, skill: randomSkill },
-        ident: "refresh_bot_upgrade"
-      }]
-    };
-
-    try {
-      const res = await fetch('https://heroes-fb.nextersglobal.com/api/', {
-        method: 'POST',
-        headers: { ...lastHeaders, "X-Request-Id": lastRequestId.toString() },
-        body: JSON.stringify(payload)
-      });
-
-      const time = new Date().toLocaleTimeString();
-
-      if (res.ok) {
-        updateBot("SUCCESS", `Hero[${targetHero}] Skill[${randomSkill}]`, time);
-
-        // --- THE REFRESH LOGIC ---
-        let countdown = 310; // 5 minutes 10 seconds
-        const timer = setInterval(() => {
-          countdown--;
-          const mins = Math.floor(countdown / 60);
-          const secs = countdown % 60;
-          updateBot("WAITING", `Refreshing in ${mins}m ${secs}s...`);
-
-          if (countdown <= 0) {
-            clearInterval(timer);
-            location.reload(); // Refresh the tab
-          }
-        }, 1000);
-
-      } else {
-        updateBot("FAILED", "Server rejected upgrade. Retrying in 30s...");
-        setTimeout(() => location.reload(), 30000);
+      if (countdown <= 0) {
+        clearInterval(timer);
+        location.reload();
       }
-    } catch (e) {
-      updateBot("ERROR", "Network error. Retrying in 30s...");
-      setTimeout(() => location.reload(), 30000);
-    }
+    }, 1000);
+
+    // 2. Fire the upgrade request after a 3s safety delay
+    setTimeout(async () => {
+      if (!lastHeaders) return;
+
+      lastRequestId += 20;
+      const payload = {
+        calls: [{
+          name: "heroUpgradeSkill",
+          args: { heroId: 60, skill: Math.floor(Math.random() * 4) + 1 },
+          ident: "forced_bot_call"
+        }]
+      };
+
+      try {
+        const res = await fetch('https://heroes-fb.nextersglobal.com/api/', {
+          method: 'POST',
+          headers: { ...lastHeaders, "X-Request-Id": lastRequestId.toString() },
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          const time = new Date().toLocaleTimeString();
+          updateBot("FORCED LOOP", `Upgrade Sent!`, time);
+        } else {
+          console.error("Upgrade request failed, waiting for reload...");
+        }
+      } catch (e) {
+        console.error("Network error during upgrade:", e);
+      }
+    }, 3000);
   }
 
   injectUI();

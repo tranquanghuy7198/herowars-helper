@@ -5,6 +5,8 @@ const intervalMs = (minutes * 60 + seconds) * 1000;
 
 // Persistent state
 let requestId = 100;
+const sessionNumber = 55; // This can be randomized or incremented if needed
+const sessionId = '0texjwq03dkvgi'; // This can be randomized or kept static if it doesn't expire
 
 console.log(`Starting script: Requesting API every ${minutes}m ${seconds}s...`);
 
@@ -28,7 +30,7 @@ async function runRequest() {
                 windowName: "global",
                 buttonName: "heroes",
                 timestamp: currentTime,
-                sessionNumber: 51,
+                sessionNumber: sessionNumber,
                 windowCounter: 0,
                 assetsReloadNum: 0,
                 assetsType: "cache",
@@ -45,7 +47,7 @@ async function runRequest() {
                 prevButtonName: "heroes",
                 prevActionName: ".client.button.click",
                 timestamp: currentTime,
-                sessionNumber: 51,
+                sessionNumber: sessionNumber,
                 windowCounter: 59,
                 assetsReloadNum: 0,
                 assetsType: "web",
@@ -95,7 +97,7 @@ async function runRequest() {
         'x-auth-application-id': '1701433570146040',
         'x-auth-network-ident': 'facebook',
         'x-auth-player-id': '11606880',
-        'x-auth-session-id': '0texiso0ym407t',
+        'x-auth-session-id': sessionId,
         'x-auth-signature': '45f18e45c74d080a8da87901bc49f77e',
         'x-auth-token': 'ps-VlymD/gCiROrpwucKsokFdGaQZNJbtnqfLHPxYzMEWeBXh-1778597736-14.191.164.73-34fde6501e7ce3ec667bd7db290c0358',
         'x-auth-user-id': '177353923436625',
@@ -120,7 +122,7 @@ async function runRequest() {
     console.error(`[${new Date().toLocaleString()}] Network/System Error:`, err.message);
   } finally {
     // Increment regardless of success/fail
-    requestId += 10;
+    requestId += 100;
   }
 }
 
